@@ -427,17 +427,16 @@ def fund_h_invest():
 #         all_df = all_df.drop_duplicates()
 #         all_df.to_excel('result/{url}_result.xlsx'.format(url = url))
 
-def write_sql(*urls):
-    for url in urls:
-        dfs = [pd.read_csv(path.join(url,x)) for x in os.listdir(url) if path.isfile(path.join(url,x))]
-        all_df = pd.concat(dfs,axis = 0, ignore_index=True)
-        all_df = all_df.iloc[:,1:]
-        all_df = all_df.drop_duplicates()
-        cnxn = pyodbc.connect(driver='{SQL Server}', server='10.11.48.12', database='FZSRD_BD',trusted_connection='yes')
-        for index,row in url.iterrows():
-            cursor = cnxn.cursor()
-            cursor.execute("INSERT INTO {url} (code,company,browser,iframe) values(?,?,?,?)".format(url = url), row.code, row.company, row.browser,row.iframe)
-        cnxn.commit()
+def write_sql(url):
+    dfs = [pd.read_csv(path.join(url,x)) for x in os.listdir(url) if path.isfile(path.join(url,x))]
+    all_df = pd.concat(dfs,axis = 0, ignore_index=True)
+    all_df = all_df.iloc[:,1:]
+    all_df = all_df.drop_duplicates()
+    cnxn = pyodbc.connect(driver='{SQL Server}', server='10.11.48.12', database='FZSRD_BD',trusted_connection='yes')
+    for index,row in url.iterrows():
+        cursor = cnxn.cursor()
+        cursor.execute("INSERT INTO {url} (code,company,browser,iframe) values(?,?,?,?)".format(url = url), row.code, row.company, row.browser,row.iframe)
+    cnxn.commit()
 
 
 
@@ -464,7 +463,8 @@ if __name__ == "__main__":
     fund_h_area()
     fund_h_industry()
     fund_h_invest()
-    write_sql('ETF_url','fund_url')
+    write_sql('ETF_url')
+    write_sql('US_url')
 
 
 
