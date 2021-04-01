@@ -164,27 +164,6 @@ def bond_crawler(bond_url):
 #################Fund####################
 #########################################
 
-########single page#######
-def fund_preprocessing(fund):    
-    fund.encoding = "utf-8"
-    soup = BeautifulSoup(fund.text, "html.parser")  
-    rows = soup.select('td.article_title a')
-    onclick = []
-    for s in rows:
-        onclick.append(s["onclick"])
-    onclick = onclick
-    onclick = pd.DataFrame(onclick)
-    code = []
-    company = []
-    for j in onclick.index:
-        x = [i for i in range(len(onclick.iloc[j,0])) if onclick.iloc[j,0].startswith("'", i)]
-        code.append(onclick.iloc[j,0][x[0]+1:x[1]])
-        company.append(onclick.iloc[j,0][x[2]+1:x[3]])
-    onclick['code'] = code
-    onclick['company'] = company
-    onclick = onclick.iloc[:,1:]
-    onclick.columns = ['code','company']
-    return onclick
 
 def fund_preprocessing_wd(fund):    
     fund.encoding = "utf-8"
@@ -208,6 +187,62 @@ def fund_preprocessing_wd(fund):
     return onclick
 
 ########multiple page########
+def fund_index(chrome_url):
+    chrome = webdriver.Chrome('./chromedriver', options=options)
+    chrome.get(chrome_url)
+    chrome.execute_script("window.scrollTo(0,document.body.scrollHeight)")
+    time.sleep(5)     
+    for i in range(1,9):    
+        if(chrome.find_element_by_link_text("人氣排行榜") and (chrome.find_element_by_id('fundType').get_attribute('value') == '股票型')):
+            fund_preprocessing_wd(chrome).to_csv('FUND_url/fund_index_{i}.csv'.format(i = i))
+            time.sleep(5)
+            chrome.find_element_by_link_text("平衡型").click()    
+            time.sleep(5)
+            i+=1
+        if(chrome.find_element_by_link_text("人氣排行榜") and (chrome.find_element_by_id('fundType').get_attribute('value') == '平衡型')):
+            fund_preprocessing_wd(chrome).to_csv('FUND_url/fund_index_{i}.csv'.format(i = i))
+            time.sleep(5)          
+            chrome.find_element_by_link_text("債券型").click()    
+            time.sleep(5)
+            i+=1
+        if(chrome.find_element_by_link_text("人氣排行榜") and (chrome.find_element_by_id('fundType').get_attribute('value') == '債券型')):  
+            fund_preprocessing_wd(chrome).to_csv('FUND_url/fund_index_{i}.csv'.format(i = i))
+            time.sleep(5)          
+            chrome.find_element_by_link_text("績效排行榜").click()
+            time.sleep(5)
+            i+=1
+        if(chrome.find_element_by_link_text("績效排行榜") and (chrome.find_element_by_id('fundType').get_attribute('value') == '股票型')):
+            fund_preprocessing_wd(chrome).to_csv('FUND_url/fund_index_{i}.csv'.format(i = i))
+            time.sleep(5)          
+            chrome.find_element_by_link_text("平衡型").click()
+            time.sleep(5)
+            i+=1      
+        if(chrome.find_element_by_link_text("績效排行榜") and (chrome.find_element_by_id('fundType').get_attribute('value') == '平衡型')):
+            fund_preprocessing_wd(chrome).to_csv('FUND_url/fund_index_{i}.csv'.format(i = i))
+            time.sleep(5)          
+            chrome.find_element_by_link_text("債券型").click()
+            time.sleep(5)
+            i+=1         
+        if(chrome.find_element_by_link_text("績效排行榜") and (chrome.find_element_by_id('fundType').get_attribute('value') == '債券型')):
+            fund_preprocessing_wd(chrome).to_csv('FUND_url/fund_index_{i}.csv'.format(i = i))
+            time.sleep(5)          
+            chrome.find_element_by_link_text("熱銷排行榜").click()
+            i+=1
+            time.sleep(5)           
+        if(chrome.find_element_by_link_text("熱銷排行榜") and (chrome.find_element_by_id('hotSaletype').get_attribute('value') == 'general')):
+            fund_preprocessing_wd(chrome).to_csv('FUND_url/fund_index_{i}.csv'.format(i = i))
+            time.sleep(5)          
+            chrome.find_element_by_link_text("定時定額").click()
+            time.sleep(5)
+            i+=1
+        if(chrome.find_element_by_link_text("熱銷排行榜") and (chrome.find_element_by_id('hotSaletype').get_attribute('value') == 'auto')):
+            fund_preprocessing_wd(chrome).to_csv('FUND_url/fund_index_{i}.csv'.format(i = i))
+            time.sleep(5)
+            break
+
+
+
+
 def fund_wd_first(chrome_url):
     chrome = webdriver.Chrome('./chromedriver', options=options)
     chrome.get(chrome_url)
@@ -367,7 +402,6 @@ def fund_h_industry():
                 break
         
 
-
 def fund_h_invest():
     for i in range(1,4):        
         chrome = webdriver.Chrome('./chromedriver', options=options)
@@ -420,29 +454,7 @@ if __name__ == "__main__":
     #####債券######
     bond_crawler('https://mma.sinopac.com/ws/bond/bondquery/ws_bondInfo.ashx')
     #####基金######
-    fund_1 = fund_preprocessing(requests.get('https://mma.sinopac.com/mma/SinopacFundSearch/search/LeaderboardItem.aspx?selectType=fund&PageNo=1&PageSize=20&hotSaletype=&fundType=%E8%82%A1%E7%A5%A8%E5%9E%8B&orderType=&boardType=default&_=1616576213559'))
-    fund_2 = fund_preprocessing(requests.get('https://mma.sinopac.com/mma/SinopacFundSearch/search/LeaderboardItem.aspx?selectType=fund&PageNo=1&PageSize=20&hotSaletype=&fundType=%E5%B9%B3%E8%A1%A1%E5%9E%8B&orderType=&boardType=default&_=1616576213560'))
-    fund_3 = fund_preprocessing(requests.get('https://mma.sinopac.com/mma/SinopacFundSearch/search/LeaderboardItem.aspx?selectType=fund&PageNo=1&PageSize=20&hotSaletype=&fundType=%E5%82%B5%E5%88%B8%E5%9E%8B&orderType=&boardType=default&_=1616576213561'))
-    fund_4 = fund_preprocessing(requests.get('https://mma.sinopac.com/mma/SinopacFundSearch/search/LeaderboardItem.aspx?selectType=fund&PageNo=1&PageSize=20&hotSaletype=&fundType=%E8%82%A1%E7%A5%A8%E5%9E%8B&orderType=&boardType=performance&_=1616576213562'))
-    fund_5 = fund_preprocessing(requests.get('https://mma.sinopac.com/mma/SinopacFundSearch/search/LeaderboardItem.aspx?selectType=fund&PageNo=1&PageSize=20&hotSaletype=&fundType=%E5%B9%B3%E8%A1%A1%E5%9E%8B&orderType=&boardType=performance&_=1616576213563'))
-    fund_6 = fund_preprocessing(requests.get('https://mma.sinopac.com/mma/SinopacFundSearch/search/LeaderboardItem.aspx?selectType=fund&PageNo=1&PageSize=20&hotSaletype=&fundType=%E5%82%B5%E5%88%B8%E5%9E%8B&orderType=&boardType=performance&_=1616576213564'))
-    fund_7 = fund_preprocessing(requests.get('https://mma.sinopac.com/mma/SinopacFundSearch/search/LeaderboardItem.aspx?selectType=fund&PageNo=1&PageSize=20&hotSaletype=general&fundType=%E5%82%B5%E5%88%B8%E5%9E%8B&orderType=&boardType=hotsale&_=1616576213565'))
-    fund_8 = fund_preprocessing(requests.get('https://mma.sinopac.com/mma/SinopacFundSearch/search/LeaderboardItem.aspx?selectType=fund&PageNo=1&PageSize=20&hotSaletype=auto&fundType=%E5%82%B5%E5%88%B8%E5%9E%8B&orderType=&boardType=hotsale&_=1616576213566'))
-    fund_index = pd.concat([fund_1,fund_2,fund_3,fund_4,fund_5,fund_6,fund_7,fund_8],axis = 0, ignore_index=True)
-    fund_index = fund_index.drop_duplicates()
-    fund_index.to_csv('FUND_url/fund_index.csv')
-    ####fund rank
-    fund_r_1 = fund_preprocessing(requests.get('https://mma.sinopac.com/mma/SinopacFundSearch/search/LeaderboardItem.aspx?selectType=&PageNo=1&PageSize=20&hotSaletype=&fundType=%E8%82%A1%E7%A5%A8%E5%9E%8B&orderType=&boardType=default&_=1616576944481'))
-    fund_r_2 = fund_preprocessing(requests.get('https://mma.sinopac.com/mma/SinopacFundSearch/search/LeaderboardItem.aspx?selectType=&PageNo=1&PageSize=20&hotSaletype=&fundType=%E5%B9%B3%E8%A1%A1%E5%9E%8B&orderType=&boardType=default&_=1616576944482'))
-    fund_r_3 = fund_preprocessing(requests.get('https://mma.sinopac.com/mma/SinopacFundSearch/search/LeaderboardItem.aspx?selectType=&PageNo=1&PageSize=20&hotSaletype=&fundType=%E5%82%B5%E5%88%B8%E5%9E%8B&orderType=&boardType=default&_=1616576944483'))
-    fund_r_4 = fund_preprocessing(requests.get('https://mma.sinopac.com/mma/SinopacFundSearch/search/LeaderboardItem.aspx?selectType=&PageNo=1&PageSize=20&hotSaletype=&fundType=%E8%82%A1%E7%A5%A8%E5%9E%8B&orderType=&boardType=performance&_=1616576944484'))
-    fund_r_5 = fund_preprocessing(requests.get('https://mma.sinopac.com/mma/SinopacFundSearch/search/LeaderboardItem.aspx?selectType=&PageNo=1&PageSize=20&hotSaletype=&fundType=%E5%B9%B3%E8%A1%A1%E5%9E%8B&orderType=&boardType=performance&_=1616576944485'))
-    fund_r_6 = fund_preprocessing(requests.get('https://mma.sinopac.com/mma/SinopacFundSearch/search/LeaderboardItem.aspx?selectType=&PageNo=1&PageSize=20&hotSaletype=&fundType=%E5%82%B5%E5%88%B8%E5%9E%8B&orderType=&boardType=performance&_=1616576944486'))
-    fund_r_7 = fund_preprocessing(requests.get('https://mma.sinopac.com/mma/SinopacFundSearch/search/LeaderboardItem.aspx?selectType=&PageNo=1&PageSize=20&hotSaletype=general&fundType=%E5%82%B5%E5%88%B8%E5%9E%8B&orderType=&boardType=hotsale&_=1616576944487'))
-    fund_r_8 = fund_preprocessing(requests.get('https://mma.sinopac.com/mma/SinopacFundSearch/search/LeaderboardItem.aspx?selectType=&PageNo=1&PageSize=20&hotSaletype=auto&fundType=%E5%82%B5%E5%88%B8%E5%9E%8B&orderType=&boardType=hotsale&_=1616576944488'))
-    fund_rank = pd.concat([fund_r_1,fund_r_2,fund_r_3,fund_r_4,fund_r_5,fund_r_6,fund_r_7,fund_r_8],axis = 0, ignore_index=True)
-    fund_rank = fund_rank.drop_duplicates()
-    fund_rank.to_csv('FUND_url/fund_rank.csv')
+    fund_index('https://mma.sinopac.com/mma/SinopacFundSearch/search/FundIndex.aspx?trans=B1')
     fund_wd_first('https://mma.sinopac.com/mma/SinopacFundSearch/search/new_fund_index_preferred.aspx?CategoryPath=1&trans=B4&selectType=fund_tag')            
     fund_wd_interest('https://mma.sinopac.com/mma/SinopacFundSearch/search/new_fund_index_interest.aspx?CategoryPath=Y&trans=B6&selectType=fund_tag')            
     fund_wd_salary('https://mma.sinopac.com/mma/SinopacFundSearch/search/Result.aspx?Keyword=%E8%96%AA%E8%BD%89&selectType=fund_tag')            
