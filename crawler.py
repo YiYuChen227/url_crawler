@@ -157,9 +157,22 @@ def bond_crawler(bond_url):
     resp = requests.get(bond_url)
     js = resp.json()
     bond_df = pd.DataFrame(js['BondList'])
-    bond_df = bond_df[['BOND_ID','CH_ABBR_NAME','ISSUE_COMPANY_NAME1']]
     bond_df.to_csv('BOND/bond_url.csv')
 
+def bond_crawler_2(bond_url):
+    response = requests.get(bond_url)
+    soup = BeautifulSoup(response.text, "html.parser")
+    table_row = soup.find_all('tr')
+    res = []
+    for tr in table_row:
+        td = tr.find_all('td')
+        row = [tr.text.strip() for tr in td if tr.text.strip()]
+        if row:
+            res.append(row)
+    bond_table = pd.DataFrame(res)
+    bond_table = bond_table.iloc[4:,:]
+    bond_table.columns = ['代號','債券名稱','計價幣別','票面利率','配息日','到期日(月/日/年)']
+    bond_table.to_csv('BOND/bond_url_2.csv')
 #########################################
 #################Fund####################
 #########################################
@@ -418,25 +431,99 @@ def fund_h_invest():
                 j += 1
             else:
                 break
-            
-# def result(*urls):
-#     for url in urls:
-#         dfs = [pd.read_csv(path.join(url,x)) for x in os.listdir(url) if path.isfile(path.join(url,x))]
-#         all_df = pd.concat(dfs,axis = 0, ignore_index=True)
-#         all_df = all_df.iloc[:,1:]
-#         all_df = all_df.drop_duplicates()
-#         all_df.to_excel('result/{url}_result.xlsx'.format(url = url))
+   
+def fund_info():
+    fund_info_code = pd.read_csv('fund_info.csv')
+    fund_info_code = fund_info_code.iloc[3227:,:]
+    fund_info_code = fund_info_code.reset_index()
+    fund_info_code = fund_info_code[['code']]
+    
+    href = []
+    for i in fund_info_code.index:
+        href.append("https://mmafund.sinopac.com/w/CustFundIDMap.djhtm?a={href}&b=10".format(href = fund_info_code.iloc[i,0]))
+    fund_info_code['href'] = href
 
-def write_sql(url):
-    dfs = [pd.read_csv(path.join(url,x)) for x in os.listdir(url) if path.isfile(path.join(url,x))]
-    all_df = pd.concat(dfs,axis = 0, ignore_index=True)
-    all_df = all_df.iloc[:,1:]
-    all_df = all_df.drop_duplicates()
-    cnxn = pyodbc.connect(driver='{SQL Server}', server='10.11.48.12', database='FZSRD_BD',trusted_connection='yes')
-    for index,row in url.iterrows():
-        cursor = cnxn.cursor()
-        cursor.execute("INSERT INTO {url} (code,company,browser,iframe) values(?,?,?,?)".format(url = url), row.code, row.company, row.browser,row.iframe)
-    cnxn.commit()
+    fund_info_list = []
+
+    for j in fund_info_code.index:
+        driver = webdriver.Chrome()
+        driver.get(fund_info_code.iloc[j,1])
+        time.sleep(2)
+        driver.execute_script("window.scrollTo(0,document.body.scrollHeight)")
+        time.sleep(2) 
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+        if (soup.find("body").text == '該基金因停止銷售或其他原因,故無相關資訊可提供參閱! '):
+                driver.close()
+                continue
+        else:
+            url = pd.DataFrame([soup.find(id = 'SysJustIFRAME')['src']])
+            fund_info_list.append(url)
+            driver.close()
+        
+
+
+    fund_info_list = pd.concat(fund_info_list)
+    fund_info_list.columns = []
+    fund_info_list.to_csv('fund_info_list.csv')
+
+def fund_product_info():
+    fund_info_list = pd.read_csv('fund_info_list.csv')
+    url = []
+    for j in range(0,len(fund_info_list)):    
+        x = [i for i in range(len(fund_info_list.iloc[j,0])) if fund_info_list.iloc[j,0].startswith("?", i)]
+        url.append(fund_info_list.iloc[j,0][:x[0]].lower()+fund_info_list.iloc[j,0][x[0]:])
+    fund_info_list['url'] = url
+    fund_info_list['url_link'] = 'https://mmafund.sinopac.com'+fund_info_list['url']
+    fund_all_list = []
+    for j in range(0,len(fund_info_list)):
+        driver = webdriver.Chrome()
+        driver.get(fund_info_list.iloc[j,1])
+        time.sleep(1)
+        driver.execute_script("window.scrollTo(0,document.body.scrollHeight)")
+        time.sleep(2) 
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+        td = soup.find('ul')
+        links_with_text = []
+        for a in td.find_all('a', href=True): 
+            if a.text:
+                links_with_text.append(a['href'])
+        links_with_text = pd.DataFrame(links_with_text)        
+        fund_all_list.append(links_with_text)
+        driver.close()
+    fund_all_list = pd.concat(fund_all_list)
+    fund_all_list.columns = ['url']
+    fund_all_list['url'] = 'https://mmafund.sinopac.com' + fund_all_list['url']
+    fund_all_list
+    code = []
+    for k in range(0, len(fund_all_list)):
+        y =[i for i in range(len(fund_all_list.iloc[k,0])) if fund_all_list.iloc[k,0].startswith("=", i)]
+        code.append(fund_all_list.iloc[k,0][y[0]+1:])
+    fund_all_list['code'] = code
+    fund_all_list['code'] = fund_all_list['code'].str.replace('=', '')
+    fund_all_list['code'] = fund_all_list['code'].str.replace(' ', '')
+    raw_url = []
+    for j in range(0,len(fund_all_list)):
+        b = [i for i in range(len(fund_all_list.iloc[j,0])) if fund_all_list.iloc[j,0].startswith("/", i)]
+        e = [i for i in range(len(fund_all_list.iloc[j,0])) if fund_all_list.iloc[j,0].startswith("d", i)]
+        z = [i for i in range(len(fund_all_list.iloc[j,0])) if fund_all_list.iloc[j,0].startswith("=", i)]
+        raw_url.append('https://mmafund.sinopac.com/w/blank.asp?sUrl=${a}${c}${d}]DJHTM{f}A{g}{product_code}'.
+                    format(a = fund_all_list.iloc[j,0][b[2]+1:b[3]].upper(),
+                            c = fund_all_list.iloc[j,0][b[3]+1:b[4]].upper(),
+                            d = fund_all_list.iloc[j,0][b[4]+1:e[1]-1].upper(),
+                            f = '{',
+                            g = '}',
+                            product_code = fund_all_list.iloc[j,0][z[0]+1:]
+                            )
+                    )
+    fund_all_list['raw_url'] = raw_url 
+    fund_all_list['url'] = fund_all_list['url'].str.replace(' ', '')
+    fund_all_list['raw_url'] = fund_all_list['url'].str.replace(' ', '')
+    fund_all_list.to_excel('fund_all_list_result.xlsx')
+
+
+
+# def write_sql(url):
+
 
 
 
@@ -450,9 +537,10 @@ if __name__ == "__main__":
     etf_wd_active('https://mma.sinopac.com/mma/SinopacFundSearch/search/new_ETF_index_active.aspx?CategoryPath=active&trans=C4')
     etf_wd_active('https://mma.sinopac.com/mma/SinopacFundSearch/search/new_ETF_index_active.aspx?CategoryPath=active&trans=C4')
     etf_wd_interest('https://mma.sinopac.com/mma/SinopacFundSearch/search/new_ETF_index_interest.aspx?CategoryPath=Y&trans=C6')
-    #####債券######
+    # #####債券######
     bond_crawler('https://mma.sinopac.com/ws/bond/bondquery/ws_bondInfo.ashx')
-    #####基金######
+    bond_crawler_2('https://mma.sinopac.com/Plan/PlanFrame.aspx?url=channel/plan/bond.html&show=1')
+    # #####基金######
     fund_index('https://mma.sinopac.com/mma/SinopacFundSearch/search/FundIndex.aspx?trans=B1')
     fund_wd_first('https://mma.sinopac.com/mma/SinopacFundSearch/search/new_fund_index_preferred.aspx?CategoryPath=1&trans=B4&selectType=fund_tag')            
     fund_wd_interest('https://mma.sinopac.com/mma/SinopacFundSearch/search/new_fund_index_interest.aspx?CategoryPath=Y&trans=B6&selectType=fund_tag')            
@@ -463,8 +551,10 @@ if __name__ == "__main__":
     fund_h_area()
     fund_h_industry()
     fund_h_invest()
-    write_sql('ETF_url')
-    write_sql('US_url')
+    fund_info()
+    fund_product_info()
+
+
 
 
 
