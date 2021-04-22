@@ -468,6 +468,7 @@ def fund_info():
 
 def fund_product_info():
     fund_info_list = pd.read_csv('fund_info_list.csv')
+    fund_info_list = fund_info_list.iloc[300:,:]
     url = []
     for j in range(0,len(fund_info_list)):    
         x = [i for i in range(len(fund_info_list.iloc[j,0])) if fund_info_list.iloc[j,0].startswith("?", i)]
